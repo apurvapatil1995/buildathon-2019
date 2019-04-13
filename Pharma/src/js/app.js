@@ -3,21 +3,15 @@ App = {
   contracts: {},
 
   init: async function() {
-    // Load pets.
-    $.getJSON('../pets.json', function(data) {
-      var petsRow = $('#petsRow');
-      var petTemplate = $('#petTemplate');
+    $.getJSON('../sell.json', function(data) {
+      var sellRow = $('#sellRow');
+      var sellTemplate = $('#sellTemplate');
 
-      for (i = 0; i < data.length; i ++) {
-        petTemplate.find('.panel-title').text(data[i].name);
-        petTemplate.find('img').attr('src', data[i].picture);
-        petTemplate.find('.pet-breed').text(data[i].breed);
-        petTemplate.find('.pet-age').text(data[i].age);
-        petTemplate.find('.pet-location').text(data[i].location);
-        petTemplate.find('.btn-adopt').attr('data-id', data[i].id);
 
-        petsRow.append(petTemplate.html());
-      }
+      sellTemplate.find('.panel-title').text(data[0].name);
+
+      sellRow.append(sellTemplate.html());
+
     });
 
     return await App.initWeb3();
@@ -50,13 +44,12 @@ App = {
   initContract: function() {
 	  $.getJSON('Pharma.json', function(data) {
 	  // Get the necessary contract artifact file and instantiate it with truffle-contract
-	  var AdoptionArtifact = data;
-	  App.contracts.Pharma = TruffleContract(AdoptionArtifact);
+	  var PharmaArtifact = data;
+	  App.contracts.Pharma = TruffleContract(PharmaArtifact);
 
 	  // Set the provider for our contract
 	  App.contracts.Pharma.setProvider(App.web3Provider);
 
-	  // Use our contract to retrieve and mark the adopted pets
 	  return App.markPurchase();
 	});
 
@@ -67,9 +60,10 @@ App = {
   bindEvents: function() {
     $(document).on('click', '.btn-purchase', App.handlePurchase);
     $(document).on('click', '.btn-create', App.handleCreate);
+    $(document).on('click', '.btn-view', App.viewHistory);
   },
 
-  markPurchase: function(adopters, account) {
+  markPurchase: function(buyers, account) {
 	var purchaseInstance;
 
 	App.contracts.Pharma.deployed().then(function(instance) {
@@ -90,7 +84,9 @@ App = {
 
   handlePurchase: function(event) {
     event.preventDefault();
-
+	console.log("as");
+var Address = document.getElementById("rcvAddr").value;
+var serialNo = document.getElementById("txnSerial").value;
     var serialId = parseInt($(event.target).data('id'));
 	//
 	var purchaseInstance;
@@ -105,8 +101,8 @@ App = {
 	  App.contracts.Pharma.deployed().then(function(instance) {
 	    purchaseInstance = instance;
 
-	    // Execute adopt as a transaction by sending account
-	    return purchaseInstance.transact(0x69236D431226d256768cC60Cae6d2b0A766471a7, 12321);
+	    // Execute transaction by sending account
+	    return purchaseInstance.transact(Address, serialNo);
 	  }).then(function(result) {
 	    return App.markPurchase();
 	  }).catch(function(err) {
@@ -115,8 +111,26 @@ App = {
 	});
 
   },
+  viewHistory: async function(){
+	    var pharmaInstance;
+	App.contracts.Pharma.deployed().then(function(instance) {
+	  pharmaInstance = instance;
+	  var RcvEvent = pharmaInstance.allEvents({ fromBlock: 0, toBlock: 'latest' });
+RcvEvent.get((error,events) => {
+		if (error)
+			console.log("error getting events: " + error);
+		else
+                        console.log(events);
+	});
+	})
+  },
+
   handleCreate: function(event){
 	event.preventDefault();
+
+	if (document.getElementById("product").value != "" && document.getElementById("serial").value != ""){
+		var productID = document.getElementById("product").value;
+		var serialNo = document.getElementById("serial").value;
 	var createInstance;
 	// get user's accounts
 	web3.eth.getAccounts(function(error, accounts) {
@@ -128,7 +142,7 @@ App = {
 	  App.contracts.Pharma.deployed().then(function(instance){
 		createInstance = instance;
 		// Create information
-		return createInstance.create(123213, 12321, {from: account});
+		return createInstance.create(productID, serialNo);
 
 	}).then(function(result) {
 		console.log("done");
@@ -137,6 +151,8 @@ App = {
 		console.log(err.message);
 	});
 	});
+	}else
+	  console.log("Fill in the required fields");
   },
   handleView: function(event){
 	event.preventDefault();
